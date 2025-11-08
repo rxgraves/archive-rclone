@@ -13,14 +13,5 @@ services:
     volumes:
       - ./config:/config
       - ./downloads:/downloads
-      - /etc/localtime:/etc/localtime:ro    # Host time sync
-      - /etc/timezone:/etc/timezone:ro      # Optional
-    # Optional: Limit resources
-    # deploy:
-    #   resources:
-    #     limits:
-    #       memory: 512M
-    #     reservations:
-    #       memory: 256M
-    # Optional: Network mode (if needed)
-    # network_mode: bridge
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
