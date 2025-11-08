@@ -21,20 +21,20 @@ COPY . /app
 RUN chmod +x /app/entrypoint.sh
 RUN pip install --no-cache-dir -r requirements.txt
 
-# NO VOLUME HERE (Railway bans it)
-
+# NO VOLUME (Railway bans it)
 ENV RCLONE_CONFIG_PATH=/config/rclone.conf
 ENV TEMP_DOWNLOAD_DIR=/downloads
 ENV PYTHONUNBUFFERED=1
 ENV TZ=UTC
 
-# Force time sync via HTTP
+# RELIABLE TIME SYNC
 ENTRYPOINT ["/bin/bash", "-c", \
     "echo 'Forcing time sync via HTTP...' && \
-     TIME=$(curl -s --max-time 5 https://worldtimeapi.org/api/timezone/UTC.txt | grep 'datetime' | cut -d: -f2- | tr -d ' \"') && \
+     TIME=$(curl -s --max-time 10 https://worldtimeapi.org/api/timezone/UTC.json | grep -oP '(?<=\"datetime\":\")[^\"]+' | head -1) && \
      if [ -n \"$TIME\" ]; then \
-       echo \"Setting system time to: $TIME\" && \
-       date -u -s \"$TIME\" > /dev/null; \
+       CLEAN_TIME=$(echo \"$TIME\" | cut -d'.' -f1 | tr 'T' ' ') && \
+       echo \"Setting system time to: $CLEAN_TIME\" && \
+       date -u -s \"$CLEAN_TIME\" > /dev/null 2>&1 || echo 'date command failed'; \
      else \
        echo 'HTTP time sync failed, using system time'; \
      fi && \
