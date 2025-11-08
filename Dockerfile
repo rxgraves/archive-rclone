@@ -1,9 +1,9 @@
 # Base image
 FROM python:3.11-slim
 
-# Install openntpd + ntpdate + tools
+# Install tools only (no NTP needed if host time is mounted)
 RUN apt-get update && \
-    apt-get install -y curl unzip ca-certificates git ffmpeg openntpd ntpdate tzdata && \
+    apt-get install -y curl unzip ca-certificates git ffmpeg tzdata && \
     ln -fs /usr/share/zoneinfo/UTC /etc/localtime && \
     dpkg-reconfigure -f noninteractive tzdata && \
     apt-get clean && \
@@ -18,7 +18,6 @@ RUN curl -fsSLo /tmp/rclone.zip https://downloads.rclone.org/rclone-current-linu
 
 WORKDIR /app
 COPY . /app
-COPY ntp.conf /etc/ntp.conf
 RUN chmod +x /app/entrypoint.sh
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -28,13 +27,5 @@ ENV TEMP_DOWNLOAD_DIR=/downloads
 ENV PYTHONUNBUFFERED=1
 ENV TZ=UTC
 
-# Start NTP + Force sync + Run bot
-ENTRYPOINT ["/bin/bash", "-c", \
-    "echo 'Starting OpenNTPD...' && \
-     ntpd -d -s -f /etc/ntp.conf & \
-     echo 'Waiting 5s for NTP sync...' && \
-     sleep 5 && \
-     echo 'Forcing sync with ntpdate...' && \
-     ntpdate -u pool.ntp.org && \
-     echo 'FINAL TIME: $(date -u)' && \
-     /app/entrypoint.sh"]
+# Simple entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]
