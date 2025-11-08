@@ -1,9 +1,9 @@
 # Base image
 FROM python:3.11-slim
 
-# Install curl + tzdata
+# Install curl + unzip + tzdata
 RUN apt-get update && \
-    apt-get install -y curl ca-certificates tzdata && \
+    apt-get install -y curl unzip ca-certificates tzdata && \
     ln -fs /usr/share/zoneinfo/UTC /etc/localtime && \
     dpkg-reconfigure -f noninteractive tzdata && \
     apt-get clean && \
@@ -21,7 +21,7 @@ COPY . /app
 RUN chmod +x /app/entrypoint.sh
 RUN pip install --no-cache-dir -r requirements.txt
 
-# DO NOT USE VOLUME HERE
+# NO VOLUME HERE (Railway bans it)
 
 ENV RCLONE_CONFIG_PATH=/config/rclone.conf
 ENV TEMP_DOWNLOAD_DIR=/downloads
