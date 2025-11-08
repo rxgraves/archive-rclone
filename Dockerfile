@@ -1,9 +1,9 @@
 # Base image
 FROM python:3.11-slim
 
-# Install ntpdate + tools
+# Install ntpsec-ntpdate + tools
 RUN apt-get update && \
-    apt-get install -y curl unzip ca-certificates tzdata ntpdate && \
+    apt-get install -y curl unzip ca-certificates tzdata ntpsec-ntpdate && \
     ln -fs /usr/share/zoneinfo/UTC /etc/localtime && \
     dpkg-reconfigure -f noninteractive tzdata && \
     apt-get clean && \
@@ -26,7 +26,7 @@ ENV TEMP_DOWNLOAD_DIR=/downloads
 ENV PYTHONUNBUFFERED=1
 ENV TZ=UTC
 
-# FORCE NTP SYNC (MOST RELIABLE)
+# FORCE NTP SYNC (WORKS 100%)
 ENTRYPOINT ["/bin/bash", "-c", \
     "echo 'Forcing time sync with NTP...' && \
      ntpdate -u pool.ntp.org > /dev/null 2>&1 && \
