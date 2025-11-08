@@ -1,9 +1,9 @@
 # Base image
 FROM python:3.11-slim
 
-# Install tools only (no NTP needed if host time is mounted)
+# Install curl + tzdata
 RUN apt-get update && \
-    apt-get install -y curl unzip ca-certificates git ffmpeg tzdata && \
+    apt-get install -y curl ca-certificates tzdata && \
     ln -fs /usr/share/zoneinfo/UTC /etc/localtime && \
     dpkg-reconfigure -f noninteractive tzdata && \
     apt-get clean && \
@@ -21,11 +21,22 @@ COPY . /app
 RUN chmod +x /app/entrypoint.sh
 RUN pip install --no-cache-dir -r requirements.txt
 
-VOLUME ["/config", "/downloads"]
+# DO NOT USE VOLUME HERE
+
 ENV RCLONE_CONFIG_PATH=/config/rclone.conf
 ENV TEMP_DOWNLOAD_DIR=/downloads
 ENV PYTHONUNBUFFERED=1
 ENV TZ=UTC
 
-# Simple entrypoint
-ENTRYPOINT ["/app/entrypoint.sh"]
+# Force time sync via HTTP
+ENTRYPOINT ["/bin/bash", "-c", \
+    "echo 'Forcing time sync via HTTP...' && \
+     TIME=$(curl -s --max-time 5 https://worldtimeapi.org/api/timezone/UTC.txt | grep 'datetime' | cut -d: -f2- | tr -d ' \"') && \
+     if [ -n \"$TIME\" ]; then \
+       echo \"Setting system time to: $TIME\" && \
+       date -u -s \"$TIME\" > /dev/null; \
+     else \
+       echo 'HTTP time sync failed, using system time'; \
+     fi && \
+     echo 'FINAL TIME: $(date -u)' && \
+     /app/entrypoint.sh"]
