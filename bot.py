@@ -1,8 +1,6 @@
 import os
 import logging
 import asyncio
-import subprocess
-import datetime
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from archive_scraper import parse_archive_url, fetch_metadata, list_files_from_metadata
@@ -18,26 +16,6 @@ TEMP_DIR = os.environ.get('TEMP_DOWNLOAD_DIR', '/downloads')
 RCLONE_CONFIG_PATH = os.environ.get('RCLONE_CONFIG_PATH', '/config/rclone.conf')
 
 os.makedirs(TEMP_DIR, exist_ok=True)
-
-# === TIME SYNC BEFORE STARTING CLIENT ===
-def sync_system_time():
-    """Sync system time with NTP to prevent Pyrogram msg_id error"""
-    logger.info("Syncing system time with NTP...")
-    try:
-        result = subprocess.run(
-            ['ntpdate', '-u', 'pool.ntp.org'],
-            capture_output=True, text=True, timeout=15
-        )
-        if result.returncode == 0:
-            logger.info("Time sync successful.")
-            logger.info(f"Current UTC time: {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}")
-        else:
-            logger.warning(f"NTP sync failed: {result.stderr}")
-    except Exception as e:
-        logger.error(f"Time sync error: {e}")
-
-# Run sync before starting Pyrogram
-sync_system_time()
 
 app = Client("archive_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
@@ -106,7 +84,7 @@ async def upload(client, cq):
     local_path = os.path.join(target_dir, filename)
     url = f"https://archive.org/download/{ident}/{filename}"
 
-    # === Clear all buttons and show progress ===
+    # Clear buttons and show progress
     progress_msg = await cq.message.edit(
         f"**Starting Download**\n"
         f"`{filename}`\n\n"
@@ -114,7 +92,6 @@ async def upload(client, cq):
     )
 
     try:
-        # === DOWNLOAD WITH PROGRESS ===
         import requests
         with requests.get(url, stream=True, timeout=60) as r:
             r.raise_for_status()
@@ -127,7 +104,7 @@ async def upload(client, cq):
                         downloaded += len(chunk)
                         if total_size > 0:
                             percent = int((downloaded / total_size) * 100)
-                            if percent % 10 == 0 or percent == 100:  # Update every 10%
+                            if percent % 10 == 0 or percent == 100:
                                 mb_down = downloaded // 1024 // 1024
                                 mb_total = total_size // 1024 // 1024
                                 await progress_msg.edit(
@@ -136,20 +113,17 @@ async def upload(client, cq):
                                     f"{mb_down} MB / {mb_total} MB"
                                 )
 
-        # === UPLOAD START ===
         await progress_msg.edit(
             f"**Download Complete!**\n"
             f"`{filename}`\n\n"
             f"Uploading to `{remote}`..."
         )
 
-        # === RCLONE UPLOAD ===
         remote_path = f"{remote}:Archive/{ident}"
         out = await asyncio.get_event_loop().run_in_executor(
             None, rclone_copy, local_path, remote_path, RCLONE_CONFIG_PATH, []
         )
 
-        # === FINAL SUCCESS MESSAGE ===
         await progress_msg.edit(
             f"**Finished!**\n"
             f"Successfully uploaded:\n"
@@ -158,7 +132,6 @@ async def upload(client, cq):
             f"Local file cleaned."
         )
 
-        # === Cleanup local file ===
         try:
             os.remove(local_path)
         except:
@@ -166,10 +139,7 @@ async def upload(client, cq):
 
     except Exception as e:
         logger.exception(e)
-        await progress_msg.edit(
-            f"**Error Occurred**\n"
-            f"`{str(e)[:500]}`"
-        )
+        await progress_msg.edit(f"**Error Occurred**\n`{str(e)[:500]}`")
 
 @app.on_message(filters.command("set_rclone_conf"))
 async def set_rclone_conf(client, message):
@@ -186,7 +156,6 @@ async def on_document(client, message):
     else:
         await message.reply_text("Upload must be named `rclone.conf`")
 
-# === Start the bot ===
 if __name__ == "__main__":
     logger.info("Starting Archive Rclone Bot...")
     app.run()
